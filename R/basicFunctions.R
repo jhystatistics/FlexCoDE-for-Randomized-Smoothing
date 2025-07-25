@@ -372,7 +372,7 @@ estimateError <- function(obj, x_test, z_test, se = TRUE, n_boot = 500,
 #'
 #' @export predict.FlexCoDE
 #' @export
-predict.RFlexCoDE <- function(obj, xNew, B = NULL, predictionBandProb = FALSE, process = TRUE, random_size = NULL, sigma = NULL) {
+predict.FlexCoDE <- function(obj, xNew, B = NULL, predictionBandProb = FALSE, process = TRUE, random_size = NULL, sigma = NULL) {
   if(is.null(random_size) || is.null(sigma)) {
     message("No random noise added to grid points.")
     if (!is.matrix(xNew)) {
