@@ -360,6 +360,8 @@ estimateError <- function(obj, x_test, z_test, se = TRUE, n_boot = 500,
 #' @param xNew Matrix with nTest rows and same number of columns as xTrain, containing x's for which the estimates are desired.
 #' @param B Number of point where f(z|x) will be evaluated (on the z scale). This will be equally spaced between zMin and zMax
 #' @param predictionBandProb Either a number indicating the probability for the highest predictive density region desired  or FALSE if bands are not desired. Default is FALSE
+#' @param random_size The number of Gaussian noise added to each of the z_i
+#' @param sigma The sigma of the Gaussian distribution
 #'
 #' @return The return value is an object with the following components
 #' \item{z}{Points where the density was evaluate}
