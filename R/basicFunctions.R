@@ -370,63 +370,109 @@ estimateError <- function(obj, x_test, z_test, se = TRUE, n_boot = 500,
 #'
 #' @export predict.FlexCoDE
 #' @export
-predict.FlexCoDE <- function(obj, xNew, B = NULL, predictionBandProb = FALSE, process = TRUE) {
-  if (!is.matrix(xNew)) {
-    xNew <- as.matrix(xNew)
-  }
-  if(is.null(B))
-    B=obj$n_grid
-  z_grid <- seq(0.0, 1.0, length.out = B)
-
-  if (!is.null(obj$bestI)) {
-    n_basis <- obj$bestI
-  } else {
-    n_basis <- obj$nIMax
-  }
-
-  coeff <- predict(obj$regressionObject, xNew, maxTerms = n_basis)
-
-  z_basis <- calculateBasis(z_grid, n_basis, obj$system)
-
-  estimates <- tcrossprod(coeff, z_basis)
-
-  if (!is.null(obj$bestDelta)) {
-    delta <- obj$bestDelta
-  } else {
-    delta <- 0.0
-  }
-
-  if (!is.null(obj$bestAlpha)) {
-    alpha <- obj$bestAlpha
-  } else {
-    alpha <- 1.0
-  }
-
-
-  binSize <- 1 / (B + 1)
-
-  if (process) {
-    estimates <- t(apply(estimates, 1, function(xx) {
-      return(post_process(binSize, xx, delta = delta,alpha=alpha))
-    }))
-  }
-
-  estimates <- estimates / (obj$zMax - obj$zMin)
-
-  if (!predictionBandProb) {
+predict.FlexCoDE <- function(obj, xNew, B = NULL, predictionBandProb = FALSE, process = TRUE, random_size = NULL, sigma = NULL) {
+  if(is.null(random_size) || is.null(sigma)) {
+    message("No random noise added to grid points.")
+    if (!is.matrix(xNew)) {
+      xNew <- as.matrix(xNew)
+    }
+    if(is.null(B))
+      B=obj$n_grid
+    z_grid <- seq(0.0, 1.0, length.out = B)
+    
+    if (!is.null(obj$bestI)) {
+      n_basis <- obj$bestI
+    } else {
+      n_basis <- obj$nIMax
+    }
+    
+    coeff <- predict(obj$regressionObject, xNew, maxTerms = n_basis)
+    
+    z_basis <- calculateBasis(z_grid, n_basis, obj$system)
+    
+    estimates <- tcrossprod(coeff, z_basis)
+    
+    if (!is.null(obj$bestDelta)) {
+      delta <- obj$bestDelta
+    } else {
+      delta <- 0.0
+    }
+    
+    if (!is.null(obj$bestAlpha)) {
+      alpha <- obj$bestAlpha
+    } else {
+      alpha <- 1.0
+    }
+    
+    
+    binSize <- 1 / (B + 1)
+    
+    if (process) {
+      estimates <- t(apply(estimates, 1, function(xx) {
+        return(post_process(binSize, xx, delta = delta,alpha=alpha))
+      }))
+    }
+    
+    estimates <- estimates / (obj$zMax - obj$zMin)
+    
+    if (!predictionBandProb) {
+      return(list(CDE = estimates,
+                  z = seq(obj$zMin, obj$zMax, length.out = B)))
+    }
+    
+    th <- matrix(NA, nrow(estimates), 1)
+    for (ii in 1:nrow(estimates)) {
+      th[ii] = .findThresholdHPD((obj$zMax - obj$zMin) / B,
+                                 estimates[ii, ], predictionBandProb)
+    }
+    
     return(list(CDE = estimates,
-                z = seq(obj$zMin, obj$zMax, length.out = B)))
+                z = seq(obj$zMin, obj$zMax, length.out = B),
+                th = th))
+    
+  } else {
+    message("Adding Gaussian noise to grid points.")
+    if (!is.matrix(xNew)) {
+      xNew <- as.matrix(xNew)
+    }
+    
+    if(is.null(B))
+      B=obj$n_grid
+    
+    z_base <- seq(0, 1, length.out = B)
+    noise <- matrix(rnorm(B * random_size, mean = 0, sd = sigma), nrow = B, ncol = random_size)
+    z_noisy_mat <- matrix(rep(z_base, each = random_size), nrow = B, ncol = random_size) + noise
+    z_noisy_vec <- as.numeric(z_noisy_mat)
+    
+    if (!is.null(obj$bestI)) {
+      n_basis <- obj$bestI
+    }else {
+      n_basis <- obj$nIMax
+    }
+    
+    coeff <- predict(obj$regressionObject, xNew, maxTerms = n_basis)
+    z_basis_noisy <- calculateBasis(z_noisy_vec, n_basis, obj$system)
+    estimates_noisy <- tcrossprod(coeff, z_basis_noisy)
+    
+    for (i in seq_len(B)) {
+      cols <- ((i-1)*random_size + 1):(i*random_size)
+      estimates[, i] <- rowMeans(estimates_noisy[, cols, drop = FALSE])
+    }
+    
+    estimates <- estimates / (obj$zMax - obj$zMin)
+    z_real <- seq(obj$zMin, obj$zMax, length.out = B)
+    
+    if (!predictionBandProb) {
+      return(list(CDE = estimates, z = z_real))
+    } else {
+      th <- matrix(NA, nrow(estimates), 1)
+      for (ii in 1:nrow(estimates)) {
+        th[ii] <- .findThresholdHPD((obj$zMax - obj$zMin)/B,
+                                    estimates[ii, ], predictionBandProb)
+      }
+      return(list(CDE = estimates, z = z_real, th = th))
+    }
   }
-
-  th <- matrix(NA, nrow(estimates), 1)
-  for (ii in 1:nrow(estimates)) {
-    th[ii] = .findThresholdHPD((obj$zMax - obj$zMin) / B,
-                               estimates[ii, ], predictionBandProb)
-  }
-
-  return(list(CDE = estimates,
-              z = seq(obj$zMin, obj$zMax, length.out = B),
-              th = th))
 }
 
 #' Print object of class FlexCoDE
