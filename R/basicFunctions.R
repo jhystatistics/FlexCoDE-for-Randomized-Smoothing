@@ -458,6 +458,7 @@ predict.FlexCoDE <- function(obj, xNew, B = NULL, predictionBandProb = FALSE, pr
     
     for (i in seq_len(B)) {
       cols <- ((i-1)*random_size + 1):(i*random_size)
+      estimates <- matrix(NA, nrow = nrow(estimates_noisy), ncol = B)
       estimates[, i] <- rowMeans(estimates_noisy[, cols, drop = FALSE])
     }
     
