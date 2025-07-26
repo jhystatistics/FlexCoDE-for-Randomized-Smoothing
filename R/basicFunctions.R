@@ -455,10 +455,10 @@ predict.FlexCoDE <- function(obj, xNew, B = NULL, predictionBandProb = FALSE, pr
     coeff <- predict(obj$regressionObject, xNew, maxTerms = n_basis)
     z_basis_noisy <- calculateBasis(z_noisy_vec, n_basis, obj$system)
     estimates_noisy <- tcrossprod(coeff, z_basis_noisy)
+    estimates <- matrix(NA, nrow = nrow(estimates_noisy), ncol = B)
     
     for (i in seq_len(B)) {
       cols <- ((i-1)*random_size + 1):(i*random_size)
-      estimates <- matrix(NA, nrow = nrow(estimates_noisy), ncol = B)
       estimates[, i] <- rowMeans(estimates_noisy[, cols, drop = FALSE])
     }
     
